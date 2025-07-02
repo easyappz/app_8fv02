@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Box, Button, TextField, Typography, Snackbar, Alert } from '@mui/material';
+import { Box, Button, TextField, Typography, Snackbar, Alert, CircularProgress } from '@mui/material';
 import { styled } from '@mui/system';
 
 const CalculatorContainer = styled(Box)({
@@ -56,6 +56,7 @@ const Calculator = () => {
   const [waitingForSecondOperand, setWaitingForSecondOperand] = useState(false);
   const [error, setError] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const handleNumberClick = (num) => {
     if (display === '0' && num !== '.') {
@@ -74,34 +75,52 @@ const Calculator = () => {
     setWaitingForSecondOperand(true);
   };
 
-  const calculateResult = () => {
+  const calculateResult = async () => {
     if (!firstOperand || !operation) return;
 
     const secondOperand = parseFloat(display);
-    let result = 0;
-    let hasError = false;
+    setLoading(true);
 
-    if (operation === '+') {
-      result = firstOperand + secondOperand;
-    } else if (operation === '-') {
-      result = firstOperand - secondOperand;
-    } else if (operation === '*') {
-      result = firstOperand * secondOperand;
-    } else if (operation === '/') {
-      if (secondOperand === 0) {
-        hasError = true;
-        setErrorMessage('Cannot divide by zero');
-        setError(true);
-      } else {
-        result = firstOperand / secondOperand;
+    try {
+      // Map operation symbols to API operation names
+      let apiOperation;
+      if (operation === '+') {
+        apiOperation = 'add';
+      } else if (operation === '-') {
+        apiOperation = 'subtract';
+      } else if (operation === '*') {
+        apiOperation = 'multiply';
+      } else if (operation === '/') {
+        apiOperation = 'divide';
       }
-    }
 
-    if (!hasError) {
-      setDisplay(result.toString());
+      const response = await fetch('/api/calculate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          number1: firstOperand,
+          number2: secondOperand,
+          operation: apiOperation,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Server error');
+      }
+
+      setDisplay(data.result.toString());
       setFirstOperand(null);
       setOperation(null);
       setWaitingForSecondOperand(false);
+    } catch (err) {
+      setErrorMessage(err.message || 'Failed to calculate result');
+      setError(true);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -143,7 +162,13 @@ const Calculator = () => {
         <OperationButton onClick={() => handleOperationClick('-')} variant="contained">-</OperationButton>
         <CalcButton onClick={() => handleNumberClick('0')} variant="contained">0</CalcButton>
         <CalcButton onClick={() => handleNumberClick('.')} variant="contained">.</CalcButton>
-        <CalcButton onClick={calculateResult} variant="contained">=</CalcButton>
+        <CalcButton 
+          onClick={calculateResult} 
+          variant="contained"
+          disabled={loading}
+        >
+          {loading ? <CircularProgress size={24} /> : '='}
+        </CalcButton>
         <OperationButton onClick={() => handleOperationClick('+')} variant="contained">+</OperationButton>
       </ButtonsGrid>
       <Snackbar
