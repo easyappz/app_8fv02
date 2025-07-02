@@ -1,20 +1,70 @@
 import React, { useState } from 'react';
-import { Box, Button, Grid, Paper, Typography } from '@mui/material';
+import { Box, Button, TextField, Typography, Snackbar, Alert } from '@mui/material';
+import { styled } from '@mui/system';
+
+const CalculatorContainer = styled(Box)({
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  padding: '20px',
+  maxWidth: '400px',
+  margin: 'auto',
+  backgroundColor: '#f5f5f5',
+  borderRadius: '10px',
+  boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
+});
+
+const Display = styled(TextField)({
+  width: '100%',
+  marginBottom: '20px',
+  '& .MuiInputBase-input': {
+    textAlign: 'right',
+    fontSize: '1.5rem',
+    padding: '10px',
+  },
+});
+
+const ButtonsGrid = styled(Box)({
+  display: 'grid',
+  gridTemplateColumns: 'repeat(4, 1fr)',
+  gap: '10px',
+  width: '100%',
+});
+
+const CalcButton = styled(Button)({
+  padding: '20px',
+  fontSize: '1.2rem',
+  backgroundColor: '#e0e0e0',
+  color: '#000',
+  '&:hover': {
+    backgroundColor: '#d5d5d5',
+  },
+});
+
+const OperationButton = styled(CalcButton)({
+  backgroundColor: '#ff9500',
+  color: '#fff',
+  '&:hover': {
+    backgroundColor: '#e68a00',
+  },
+});
 
 const Calculator = () => {
   const [display, setDisplay] = useState('0');
   const [firstOperand, setFirstOperand] = useState(null);
   const [operation, setOperation] = useState(null);
   const [waitingForSecondOperand, setWaitingForSecondOperand] = useState(false);
+  const [error, setError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
-  const handleNumberClick = (value) => {
-    if (display === '0' && value !== '.') {
-      setDisplay(value);
-    } else {
-      setDisplay(display + value);
-    }
-    if (waitingForSecondOperand) {
+  const handleNumberClick = (num) => {
+    if (display === '0' && num !== '.') {
+      setDisplay(num);
+    } else if (waitingForSecondOperand) {
+      setDisplay(num);
       setWaitingForSecondOperand(false);
+    } else {
+      setDisplay(display + num);
     }
   };
 
@@ -22,21 +72,14 @@ const Calculator = () => {
     setFirstOperand(parseFloat(display));
     setOperation(op);
     setWaitingForSecondOperand(true);
-    setDisplay('0');
   };
 
-  const handleClearClick = () => {
-    setDisplay('0');
-    setFirstOperand(null);
-    setOperation(null);
-    setWaitingForSecondOperand(false);
-  };
-
-  const handleEqualClick = () => {
-    if (firstOperand === null || operation === null) return;
+  const calculateResult = () => {
+    if (!firstOperand || !operation) return;
 
     const secondOperand = parseFloat(display);
     let result = 0;
+    let hasError = false;
 
     if (operation === '+') {
       result = firstOperand + secondOperand;
@@ -46,88 +89,74 @@ const Calculator = () => {
       result = firstOperand * secondOperand;
     } else if (operation === '/') {
       if (secondOperand === 0) {
-        setDisplay('Error');
-        setFirstOperand(null);
-        setOperation(null);
-        setWaitingForSecondOperand(false);
-        return;
+        hasError = true;
+        setErrorMessage('Cannot divide by zero');
+        setError(true);
+      } else {
+        result = firstOperand / secondOperand;
       }
-      result = firstOperand / secondOperand;
     }
 
-    setDisplay(result.toString());
+    if (!hasError) {
+      setDisplay(result.toString());
+      setFirstOperand(null);
+      setOperation(null);
+      setWaitingForSecondOperand(false);
+    }
+  };
+
+  const handleClear = () => {
+    setDisplay('0');
     setFirstOperand(null);
     setOperation(null);
     setWaitingForSecondOperand(false);
   };
 
-  const buttons = [
-    '7', '8', '9', '/',
-    '4', '5', '6', '*',
-    '1', '2', '3', '-',
-    '0', '.', 'C', '+',
-    '='
-  ];
+  const handleCloseSnackbar = () => {
+    setError(false);
+  };
 
   return (
-    <Box sx={{
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-      height: '100vh',
-      backgroundColor: '#f5f5f5'
-    }}>
-      <Paper elevation={3} sx={{
-        width: 320,
-        padding: 2,
-        borderRadius: 3,
-        backgroundColor: '#ffffff'
-      }}>
-        <Box sx={{
-          backgroundColor: '#333',
-          color: 'white',
-          padding: 2,
-          borderRadius: 1,
-          marginBottom: 2,
-          textAlign: 'right',
-          minHeight: 60,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'flex-end'
-        }}>
-          <Typography variant="h4" sx={{ fontFamily: 'monospace' }}>
-            {display}
-          </Typography>
-        </Box>
-        <Grid container spacing={1}>
-          {buttons.map((btn) => (
-            <Grid item xs={3} key={btn}>
-              <Button
-                variant="contained"
-                fullWidth
-                sx={{
-                  height: 60,
-                  fontSize: 20,
-                  backgroundColor: btn === 'C' ? '#f44336' : btn === '=' ? '#4caf50' : '#e0e0e0',
-                  color: btn === 'C' || btn === '=' ? 'white' : 'black',
-                  '&:hover': {
-                    backgroundColor: btn === 'C' ? '#d32f2f' : btn === '=' ? '#388e3c' : '#d5d5d5'
-                  }
-                }}
-                onClick={() => {
-                  if (btn === 'C') handleClearClick();
-                  else if (btn === '=') handleEqualClick();
-                  else if (['+', '-', '*', '/'].includes(btn)) handleOperationClick(btn);
-                  else handleNumberClick(btn);
-                }}
-              >
-                {btn}
-              </Button>
-            </Grid>
-          ))}
-        </Grid>
-      </Paper>
-    </Box>
+    <CalculatorContainer>
+      <Typography variant="h4" gutterBottom>
+        Calculator
+      </Typography>
+      <Display
+        value={display}
+        variant="outlined"
+        disabled
+        inputProps={{ 'aria-label': 'Calculator Display' }}
+      />
+      <ButtonsGrid>
+        <CalcButton onClick={() => handleClear()} variant="contained">C</CalcButton>
+        <CalcButton onClick={() => handleNumberClick('7')} variant="contained">7</CalcButton>
+        <CalcButton onClick={() => handleNumberClick('8')} variant="contained">8</CalcButton>
+        <CalcButton onClick={() => handleNumberClick('9')} variant="contained">9</CalcButton>
+        <OperationButton onClick={() => handleOperationClick('/')} variant="contained">/</OperationButton>
+        <CalcButton onClick={() => handleNumberClick('4')} variant="contained">4</CalcButton>
+        <CalcButton onClick={() => handleNumberClick('5')} variant="contained">5</CalcButton>
+        <CalcButton onClick={() => handleNumberClick('6')} variant="contained">6</CalcButton>
+        <OperationButton onClick={() => handleOperationClick('*')} variant="contained">*</OperationButton>
+        <CalcButton onClick={() => handleNumberClick('1')} variant="contained">1</CalcButton>
+        <CalcButton onClick={() => handleNumberClick('2')} variant="contained">2</CalcButton>
+        <CalcButton onClick={() => handleNumberClick('3')} variant="contained">3</CalcButton>
+        <OperationButton onClick={() => handleOperationClick('-')} variant="contained">-</OperationButton>
+        <CalcButton onClick={() => handleNumberClick('0')} variant="contained">0</CalcButton>
+        <CalcButton onClick={() => handleNumberClick('.')} variant="contained">.</CalcButton>
+        <CalcButton onClick={calculateResult} variant="contained">=</CalcButton>
+        <OperationButton onClick={() => handleOperationClick('+')} variant="contained">+</OperationButton>
+      </ButtonsGrid>
+      <Snackbar
+        open={error}
+        autoHideDuration={5000}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert onClose={handleCloseSnackbar} severity="error" sx={{ width: '100%' }}>
+          {errorMessage}
+        </Alert>
+      </Snackbar>
+    </CalculatorContainer>
   );
 };
 
